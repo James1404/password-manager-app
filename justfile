@@ -1,3 +1,5 @@
+default: gui
+
 build:
     @dotnet restore
     @dotnet build
