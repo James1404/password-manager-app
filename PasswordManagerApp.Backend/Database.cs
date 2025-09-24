@@ -44,24 +44,69 @@ public class Item
     public required Account Account { get; set; }
 }
 
-public class Database
+public static class Database
 {
-    public static (byte[] hash, byte[] salt) Encrypt(string input)
-    {
-        const int size = 25;
-        using var rng = RandomNumberGenerator.Create();
+    public const int ByteLen = 16;
 
-        var salt = new byte[size];
+    public static byte[] GenSalt()
+    {
+        var salt = new byte[ByteLen];
+
+        using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(salt);
 
-        var pkbdf2 = new Rfc2898DeriveBytes(input, salt, 1000, HashAlgorithmName.SHA256);
-        var hash = pkbdf2.GetBytes(size);
-
-        return (hash, salt);
+        return salt;
     }
 
-    public static string Decrypt(byte[] input, byte[] key)
+    public static byte[] HashPassword(string input, byte[] salt)
     {
-        return "";
+        var pkbdf2 = new Rfc2898DeriveBytes(input, salt, 1000, HashAlgorithmName.SHA256);
+        var hash = pkbdf2.GetBytes(ByteLen);
+
+        return hash;
     }
+
+    public static byte[] Encrypt(string input, byte[] key, byte[] iv)
+    {
+        using Aes aesAlgo = Aes.Create();
+
+        aesAlgo.Key = key;
+        aesAlgo.IV = iv;
+
+        ICryptoTransform encryptor = aesAlgo.CreateEncryptor(aesAlgo.Key, aesAlgo.IV);
+
+        using MemoryStream msEncrypt = new MemoryStream();
+        using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+        {
+            using StreamWriter swEncrypt = new StreamWriter(csEncrypt);
+
+            swEncrypt.Write(input);
+        }
+
+        return msEncrypt.ToArray();
+    }
+
+    public static string Decrypt(byte[] input, byte[] key, byte[] iv)
+    {
+        using Aes aesAlgo = Aes.Create();
+        aesAlgo.Key = key;
+        aesAlgo.IV = iv;
+
+        ICryptoTransform decryptor = aesAlgo.CreateDecryptor(aesAlgo.Key, aesAlgo.IV);
+
+        using MemoryStream msDecrypt = new MemoryStream(input);
+        using CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+        using StreamReader swDecrypt = new StreamReader(csDecrypt);
+
+        return swDecrypt.ReadToEnd();
+    }
+
+    static void AsmKey()
+    {
+        const string KeyName = "Key1";
+        var cspp = new CspParameters() { KeyContainerName = KeyName };
+        var rsa = new RSACryptoServiceProvider(cspp) { PersistKeyInCsp = true };
+    }
+
+    public static string Prettify(this byte[] b) => string.Join(".", b);
 }
