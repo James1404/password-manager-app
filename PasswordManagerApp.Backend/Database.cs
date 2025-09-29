@@ -23,12 +23,41 @@ public class PasswordManagerContext : DbContext
     }
 }
 
+public struct Ciphertext
+{
+    byte[] IV;
+    byte[] Data;
+
+    public Ciphertext(byte[] iv, byte[] data)
+    {
+        IV = iv;
+        Data = data;
+    }
+
+    public static Ciphertext FromBytes(byte[] stream)
+    {
+        byte[] IVLenBytes = stream[..sizeof(int)];
+        int IVLen = BitConverter.ToInt32(IVLenBytes);
+
+        byte[] IV = stream[IVLenBytes.Length..(IVLenBytes.Length + IVLen)];
+
+        return Ciphertext(IV);
+    }
+
+    public byte[] ToBytes()
+    {
+        byte[] IVLen = BitConverter.GetBytes(IV.Length);
+        return IVLen.Concat(IV.Concat(Data).ToArray()).ToArray();
+    }
+}
+
 public class Account
 {
     public int AccountId { get; set; }
     public required string Email { get; set; }
     public required byte[] HashedPassword { get; set; }
     public required byte[] Salt { get; set; }
+    public required byte[] EncryptionIV { get; set; }
 }
 
 public class Item

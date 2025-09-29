@@ -1,7 +1,6 @@
 default: gui
 
 build:
-    @dotnet restore
     @dotnet build
 
 tui: build
